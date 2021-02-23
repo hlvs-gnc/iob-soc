@@ -10,10 +10,10 @@
 
 
 #FIRMWARE SIZE (LOG2)
-FIRM_ADDR_W ?=16
+FIRM_ADDR_W ?=18
 
 #SRAM SIZE (LOG2)
-SRAM_ADDR_W ?=16
+SRAM_ADDR_W ?=18
 
 #DDR 
 USE_DDR ?=0
@@ -23,7 +23,7 @@ RUN_DDR ?=0
 DCACHE_ADDR_W:=24
 
 #ROM SIZE (LOG2)
-BOOTROM_ADDR_W:=12
+BOOTROM_ADDR_W:=14
 
 #PRE-INIT MEMORY WITH PROGRAM AND DATA
 INIT_MEM ?=1
@@ -32,7 +32,7 @@ INIT_MEM ?=1
 #must match respective submodule or folder name in the submodules directory
 #and CORE_NAME in the core.mk file of the submodule
 #PERIPHERALS:=UART
-PERIPHERALS ?=UART
+PERIPHERALS ?=UART TIMER
 
 #
 #SIMULATION
