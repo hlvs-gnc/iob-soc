@@ -7,3 +7,6 @@
 [submodule "submodules/AXI"]
 	path = submodules/AXI
 	url = git@github.com:IObundle/verilog-axi.git
+[submodule "submodules/LIBMAD"]
+	path = submodules/LIBMAD
+	url = git@github.com:IObundle/libmad.git

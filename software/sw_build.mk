@@ -32,7 +32,7 @@ UTARGETS+=build_iob_soc_software
 
 TEMPLATE_LDS=src/$@.lds
 
-IOB_SOC_INCLUDES=-I. -Isrc 
+IOB_SOC_INCLUDES=-I. -Isrc -DFPM_DEFAULT -DNDEBUG
 
 IOB_SOC_LFLAGS=-Wl,-Bstatic,-T,$(TEMPLATE_LDS),--strip-debug
 
@@ -43,6 +43,12 @@ IOB_SOC_FW_SRC+=src/printf.c
 # PERIPHERAL SOURCES
 IOB_SOC_FW_SRC+=$(wildcard src/iob-*.c)
 IOB_SOC_FW_SRC+=$(filter-out %_emul.c, $(wildcard src/*swreg*.c))
+
+# LIBMAD SOURCES
+SW_LIBMAD_DIR=src/LIBMAD
+IOB_SOC_INCLUDES+=-I$(SW_LIBMAD_DIR)
+
+IOB_SOC_FW_SRC+=$(SW_LIBMAD_DIR)/frame.c $(SW_LIBMAD_DIR)/bit.c $(SW_LIBMAD_DIR)/fixed.c $(SW_LIBMAD_DIR)/huffman.c $(SW_LIBMAD_DIR)/synth.c $(SW_LIBMAD_DIR)/version.c $(SW_LIBMAD_DIR)/decoder.c $(SW_LIBMAD_DIR)/layer12.c $(SW_LIBMAD_DIR)/layer3.c $(SW_LIBMAD_DIR)/stream.c $(SW_LIBMAD_DIR)/timer.c
 
 # BOOTLOADER SOURCES
 IOB_SOC_BOOT_SRC+=src/iob_soc_boot.S

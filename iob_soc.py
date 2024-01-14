@@ -2,6 +2,7 @@
 
 import os
 import sys
+import shutil
 
 from iob_module import iob_module
 from iob_block_group import iob_block_group
@@ -135,6 +136,18 @@ class iob_soc(iob_module):
         )
 
     @classmethod
+    def _post_setup(cls):
+        super()._post_setup()
+        dst = f"{cls.build_dir}/software/src/LIBMAD"
+        src = f"{__class__.setup_dir}/submodules/LIBMAD"
+        os.makedirs(dst, exist_ok=True)
+        files = os.listdir(src)
+        for fname in files:
+            src_file = os.path.join(src, fname)
+            if os.path.isfile(src_file):
+                shutil.copy2(src_file, dst)
+
+    @classmethod
     def _setup_portmap(cls):
         cls.peripheral_portmap += [
             (
@@ -243,7 +256,7 @@ class iob_soc(iob_module):
                 {
                     "name": "BOOTROM_ADDR_W",
                     "type": "P",
-                    "val": "12",
+                    "val": "15",
                     "min": "1",
                     "max": "32",
                     "descr": "Boot ROM address width",
@@ -251,7 +264,7 @@ class iob_soc(iob_module):
                 {
                     "name": "SRAM_ADDR_W",
                     "type": "P",
-                    "val": "15",
+                    "val": "18",
                     "min": "1",
                     "max": "32",
                     "descr": "SRAM address width",
