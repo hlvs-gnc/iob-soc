@@ -15,13 +15,6 @@
 
 #include "mad.h"
 
-// set pointer to DDR base
-#if (USE_EXTMEM == 0) // running firmware from SRAM
-#define DATA_BASE_ADDR (EXTRA_BASE)
-#else // running firmware from DDR
-#define DATA_BASE_ADDR ((1 << (FIRM_ADDR_W)))
-#endif
-
 #define INPUTBUFFERSIZE 4096
 #define NBR_BYTES 256
 #define DEBUG 0
@@ -228,10 +221,9 @@ static enum mad_flow output(void *data, struct mad_header const *header,
 
 #if (DEBUG == 1)
   printf("\nDecoder output callback function\n");
-  printf("\nclk_cycles: %llu\n", clk_cycles);
+#endif
   printf("\n#Clock cycles: %d\n", (unsigned int)clk_cycles);
   printf("Decoding time: %d us @%dMHz\n\n", elapsed_us, FREQ / 1000000);
-#endif
 
   /* pcm->samplerate contains the sampling frequency */
   nchannels = pcm->channels;
@@ -381,12 +373,6 @@ int main() {
 
   mpeg_file_size = uart_recvfile("testcase-22050.mp2", audio_addr_in);
 
-  printf("audio_addr_in: %d\n", &audio_addr_in[0]);
-
-  audio_addr_out = audio_addr_in + mpeg_file_size;
-
-  printf("audio_addr_out: %d\n", &audio_addr_out[0]);
-
   // Start decoding data (This function will never return)
   result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
 
@@ -442,8 +428,9 @@ int main() {
   uart_puts("\nTest complete.\n\n");
   printf("Decoded audio frames in real-time: %.1f%%\n",
          ((float)realtime_frames / nbr_frames) * 100);
-  printf("Average decoding time per frame: %d us\n",
-         elapsed_sum / realtime_frames);
+  if (realtime_frames > 0)
+    printf("Average decoding time per frame: %d us\n",
+           elapsed_sum / realtime_frames);
   printf("Total halting difference: %d us\n\n", halting_delta);
 
   uart_sendfile("out-testcase.pcm", output_offset, audio_addr_out);
