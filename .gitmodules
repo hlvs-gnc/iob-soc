@@ -10,3 +10,9 @@
 [submodule "submodules/LIBMAD"]
 	path = submodules/LIBMAD
 	url = git@github.com:IObundle/libmad.git
+[submodule "submodules/VEXRISCV"]
+	path = submodules/VEXRISCV
+	url = git@github.com:IObundle/iob-vexriscv.git
+[submodule "submodules/VERSAT"]
+	path = submodules/VERSAT
+	url = git@github.com:IObundle/iob-versat.git

@@ -18,6 +18,7 @@
 #define INPUTBUFFERSIZE 4096
 #define NBR_BYTES 256
 #define DEBUG 0
+#define AUDIO_SPECS 1
 #define SIM
 #define CHECK_INPUT_BUFFER 0
 #define SAMPLE_RESOLUTION 16
@@ -241,7 +242,7 @@ static enum mad_flow output(void *data, struct mad_header const *header,
     nbr_frames = (mpeg_file_size / frame_size) - 1;
     frame_time_us = ((1000.0 / pcm->samplerate) * (nsamples)) * 1000.0;
 
-#if (DEBUG == 1)
+#if (AUDIO_SPECS == 1)
     printf("Audio file properties: \n");
 
     printf("nsamples: %d\nframe_size: %d\n"
