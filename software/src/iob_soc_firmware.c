@@ -16,8 +16,8 @@
 #include "mad.h"
 
 #define INPUTBUFFERSIZE 4096
-#define NBR_BYTES 256
-#define DEBUG 0
+#define NBR_BYTES 1024
+#define DEBUG 1
 #define AUDIO_SPECS 1
 #define SIM
 #define CHECK_INPUT_BUFFER 0
@@ -25,6 +25,9 @@
 
 #define MAX_WORDS_AXIS 16
 #define WORD_SIZE 4
+
+char audio_file_in[] = "testcase-44100.mp3";
+// John_Coltrane_Blue_Train_short.mp3
 
 unsigned char input_buffer[INPUTBUFFERSIZE];
 
@@ -368,11 +371,7 @@ int main() {
 
   uint8_t last_percentage = 0, percentage, bytes_to_transfer;
 
-  // read current timer count, compute elapsed time
-  unsigned long long elapsed = timer_get_count();
-  unsigned int elapsedu = elapsed / (FREQ / 1000000);
-
-  mpeg_file_size = uart_recvfile("testcase-22050.mp2", audio_addr_in);
+  mpeg_file_size = uart_recvfile(audio_file_in, audio_addr_in);
 
   // Start decoding data (This function will never return)
   result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
@@ -426,18 +425,21 @@ int main() {
 
 #endif
 
-  uart_puts("\nTest complete.\n\n");
-  printf("Decoded audio frames in real-time: %.1f%%\n",
+  uart_puts("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+  printf("Decoded audio frames: %.1f%%\nReal-time decoded frames: %.1f%%\n",
+         ((float)frames_decoded / nbr_frames) * 100,
          ((float)realtime_frames / nbr_frames) * 100);
-  if (realtime_frames > 0)
-    printf("Average decoding time per frame: %d us\n",
-           elapsed_sum / realtime_frames);
-  printf("Total halting difference: %d us\n\n", halting_delta);
+  printf("Average decoding time per frame: %d us\n",
+         elapsed_sum / frames_decoded);
+  printf("Total halting difference: %d us", halting_delta);
+  uart_puts("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 
   uart_sendfile("out-testcase.pcm", output_offset, audio_addr_out);
 
   free(audio_addr_in);
   free(audio_addr_out);
+
+  uart_puts("\nTest complete.\n\n");
 
   uart_sendfile("test.log", strlen(pass_string), pass_string);
 
