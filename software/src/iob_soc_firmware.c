@@ -17,7 +17,7 @@
 
 #define INPUTBUFFERSIZE 4096
 #define NBR_BYTES 1024
-#define DEBUG 1
+#define DEBUG 0
 #define AUDIO_SPECS 1
 #define SIM
 #define CHECK_INPUT_BUFFER 0
@@ -26,7 +26,7 @@
 #define MAX_WORDS_AXIS 16
 #define WORD_SIZE 4
 
-char audio_file_in[] = "testcase-44100.mp3";
+char audio_file_in[] = "whitenoise_uniform.mp2";
 // John_Coltrane_Blue_Train_short.mp3
 
 unsigned char input_buffer[INPUTBUFFERSIZE];
@@ -219,15 +219,17 @@ static enum mad_flow output(void *data, struct mad_header const *header,
   mad_fixed_t const *left_ch, *right_ch;
   int i = output_offset, k, nbr_samples = 0;
 
-  unsigned long long clk_cycles = timer_get_count();
-  unsigned int elapsed_us = clk_cycles / (FREQ / 1000000);
+  unsigned long long elapsed_clk_cycles = timer_get_count();
+  unsigned int elapsed_us = (unsigned int)elapsed_clk_cycles / (FREQ / 1000000);
   elapsed_sum += elapsed_us;
 
 #if (DEBUG == 1)
   printf("\nDecoder output callback function\n");
 #endif
-  printf("\n#Clock cycles: %d\n", (unsigned int)clk_cycles);
+
+  printf("\n#Clock cycles: %llu\n", elapsed_clk_cycles);
   printf("Decoding time: %d us @%dMHz\n\n", elapsed_us, FREQ / 1000000);
+  timer_reset();
 
   /* pcm->samplerate contains the sampling frequency */
   nchannels = pcm->channels;
@@ -327,14 +329,14 @@ static enum mad_flow error(void *data, struct mad_stream *stream,
                            struct mad_frame *frame) {
   struct buffer *buffer = data;
 
-#if (DEBUG == 1)
+#if (ERROR_INFO == 1)
   printf("Decoding error 0x%04x (%s) at byte offset %u\n", stream->error,
          mad_stream_errorstr(stream), stream->this_frame - buffer->start);
 #endif
 
   /* return MAD_FLOW_BREAK here to stop decoding (and propagate an error) */
 
-  return MAD_FLOW_BREAK;
+  return MAD_FLOW_CONTINUE;
 }
 
 /*
@@ -372,6 +374,8 @@ int main() {
   uint8_t last_percentage = 0, percentage, bytes_to_transfer;
 
   mpeg_file_size = uart_recvfile(audio_file_in, audio_addr_in);
+
+  audio_addr_out = audio_addr_in + mpeg_file_size;
 
   // Start decoding data (This function will never return)
   result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
@@ -431,7 +435,7 @@ int main() {
          ((float)realtime_frames / nbr_frames) * 100);
   printf("Average decoding time per frame: %d us\n",
          elapsed_sum / frames_decoded);
-  printf("Total halting difference: %d us", halting_delta);
+  printf("Halting difference per frame: %d us", halting_delta / frames_decoded);
   uart_puts("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 
   uart_sendfile("out-testcase.pcm", output_offset, audio_addr_out);
