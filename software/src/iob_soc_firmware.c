@@ -2,16 +2,18 @@
 #include "iob-timer.h"
 #include "iob-uart.h"
 
-//#include "iob-axistream-in.h"
-//##include "iob-axistream-out.h"
-
-#include "iob_soc_conf.h"
 #include "iob_soc_periphs.h"
 #include "iob_soc_system.h"
+#include "iob_soc_conf.h"
 
 #include "printf.h"
 #include <stdbool.h>
 #include <string.h>
+
+#ifdef USE_TESTER
+#include "iob-axistream-in.h"
+#include "iob-axistream-out.h"
+#endif
 
 #include "mad.h"
 
