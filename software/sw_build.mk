@@ -32,7 +32,7 @@ UTARGETS+=build_iob_soc_software
 
 TEMPLATE_LDS=src/$@.lds
 
-IOB_SOC_INCLUDES=-I. -Isrc -DFPM_DEFAULT -DNDEBUG
+IOB_SOC_INCLUDES=-I. -Isrc -DFPM_DEFAULT -DOPT_SPEED -DNDEBUG
 
 IOB_SOC_LFLAGS=-Wl,-Bstatic,-T,$(TEMPLATE_LDS),--strip-debug
 

@@ -232,7 +232,7 @@ class iob_soc(iob_module):
                 {
                     "name": "USE_COMPRESSED",
                     "type": "M",
-                    "val": "1",
+                    "val": "0",
                     "min": "0",
                     "max": "1",
                     "descr": "Use compressed CPU instructions",

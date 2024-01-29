@@ -2,9 +2,9 @@
 #include "iob-timer.h"
 #include "iob-uart.h"
 
+#include "iob_soc_conf.h"
 #include "iob_soc_periphs.h"
 #include "iob_soc_system.h"
-#include "iob_soc_conf.h"
 
 #include "printf.h"
 #include <stdbool.h>
@@ -28,7 +28,7 @@
 #define MAX_WORDS_AXIS 16
 #define WORD_SIZE 4
 
-char audio_file_in[] = "whitenoise_uniform.mp2";
+char audio_file_in[] = "testcase-22050.mp2";
 // John_Coltrane_Blue_Train_short.mp3
 
 unsigned char input_buffer[INPUTBUFFERSIZE];
@@ -177,6 +177,10 @@ static enum mad_flow input(void *data, struct mad_stream *stream) {
   // Set new buffer pointers
   mad_stream_buffer(stream, input_buffer, nwords + unprocessedData);
 
+  if (nwords < NBR_BYTES)
+    mad_stream_buffer(stream, input_buffer,
+                      nwords + unprocessedData + MAD_BUFFER_GUARD);
+
   if (decoder.sync->stream.error != MAD_ERROR_BUFLEN) {
     stream->sync = previous_sync;
   }
@@ -221,17 +225,12 @@ static enum mad_flow output(void *data, struct mad_header const *header,
   mad_fixed_t const *left_ch, *right_ch;
   int i = output_offset, k, nbr_samples = 0;
 
-  unsigned long long elapsed_clk_cycles = timer_get_count();
-  unsigned int elapsed_us = (unsigned int)elapsed_clk_cycles / (FREQ / 1000000);
-  elapsed_sum += elapsed_us;
+  unsigned long long elapsed_clk_cycles;
+  unsigned int elapsed_us;
 
 #if (DEBUG == 1)
   printf("\nDecoder output callback function\n");
 #endif
-
-  printf("\n#Clock cycles: %llu\n", elapsed_clk_cycles);
-  printf("Decoding time: %d us @%dMHz\n\n", elapsed_us, FREQ / 1000000);
-  timer_reset();
 
   /* pcm->samplerate contains the sampling frequency */
   nchannels = pcm->channels;
@@ -246,7 +245,7 @@ static enum mad_flow output(void *data, struct mad_header const *header,
   if (frames_decoded == 0) {
 
     frame_size = ((nsamples * header->bitrate) / 8) / header->samplerate;
-    nbr_frames = (mpeg_file_size / frame_size) - 1;
+    nbr_frames = (mpeg_file_size / frame_size);
     frame_time_us = ((1000.0 / pcm->samplerate) * (nsamples)) * 1000.0;
 
 #if (AUDIO_SPECS == 1)
@@ -265,11 +264,6 @@ static enum mad_flow output(void *data, struct mad_header const *header,
 
     audio_addr_out = (unsigned char *)malloc(nsamples * k * nbr_frames);
   }
-
-  if (elapsed_us <= frame_time_us)
-    realtime_frames++;
-  else
-    halting_delta += (elapsed_us - frame_time_us);
 
   while (nsamples--) {
     signed int sample;
@@ -314,6 +308,20 @@ static enum mad_flow output(void *data, struct mad_header const *header,
     }
     i += k;
   }
+
+  elapsed_clk_cycles = timer_get_count();
+  elapsed_us = (unsigned int)elapsed_clk_cycles / (FREQ / 1000000);
+
+  printf("\n#Clock cycles: %llu\n", elapsed_clk_cycles);
+  printf("Decoding time: %d us @%dMHz\n\n", elapsed_us, FREQ / 1000000);
+  timer_reset();
+
+  elapsed_sum += elapsed_us;
+
+  if (elapsed_us <= frame_time_us)
+    realtime_frames++;
+  else
+    halting_delta += (elapsed_us - frame_time_us);
 
   output_offset += nbr_samples;
   frames_decoded += 1;
