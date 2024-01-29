@@ -29,7 +29,6 @@
 #define WORD_SIZE 4
 
 char audio_file_in[] = "testcase-22050.mp2";
-// John_Coltrane_Blue_Train_short.mp3
 
 unsigned char input_buffer[INPUTBUFFERSIZE];
 

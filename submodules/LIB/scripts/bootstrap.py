@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -B
 # Python script to search and add python modules under the given directory to the search path.
 # It also instatiates the top module, assuming that it is a class with the same name as the file that contains it.
 import os
@@ -132,15 +132,20 @@ def version_from_str(version_str):
     return version_str
 
 
-# Print Makefile variable definitions, used for delivery
-def get_delivery_vars():
+# function to return the top module name
+def get_top_module_name():
     top_module = vars(sys.modules[top_module_name])[top_module_name]
     top_module.is_top_module = True
     top_module.init_attributes()
-    print(f"NAME={top_module.name} ", end="")
-    print(f"VERSION={version_from_str(top_module.version)} ", end="")
-    print(f"PREVIOUS_VERSION={version_from_str(top_module.previous_version)} ", end="")
-    print(f"VERSION_STR={top_module.version} ")
+    print(f"{top_module.name}", end="")
+
+
+# function to return the top module version
+def get_top_module_version():
+    top_module = vars(sys.modules[top_module_name])[top_module_name]
+    top_module.is_top_module = True
+    top_module.init_attributes()
+    print(f"{top_module.version}", end="")
 
 
 # Print build directory attribute of the top module

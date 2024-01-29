@@ -3,11 +3,6 @@
 # This file is run as a makefile to setup a build directory for an IP core
 #
 
-help:
-	@echo The following targets are available:
-	@echo "  build-setup:  Setup the build directory"
-	@echo "  clean:  Remove the build directory"
-
 TOP_MODULE_NAME ?=$(basename $(wildcard *.py))
 PROJECT_ROOT ?=.
 
@@ -17,12 +12,9 @@ SETUP_ARGS += LIB_DIR=$(LIB_DIR)
 # python scripts directory
 PYTHON_DIR=$(LIB_DIR)/scripts
 
-PYTHON_EXEC:=/usr/bin/env python3 -B
-
-
 # establish build dir paths
 build_dir_name:
-	$(eval BUILD_DIR := $(shell $(PYTHON_EXEC) $(PYTHON_DIR)/bootstrap.py $(TOP_MODULE_NAME) $(SETUP_ARGS) -f get_build_dir -s $(PROJECT_ROOT)))
+	$(eval BUILD_DIR := $(shell $(PYTHON_DIR)/bootstrap.py $(TOP_MODULE_NAME) $(SETUP_ARGS) -f get_build_dir -s $(PROJECT_ROOT)))
 	$(eval BUILD_VSRC_DIR = $(BUILD_DIR)/hardware/src)
 	$(eval BUILD_SIM_DIR := $(BUILD_DIR)/hardware/simulation)
 	$(eval BUILD_FPGA_DIR = $(BUILD_DIR)/hardware/fpga)	
@@ -33,7 +25,7 @@ build_dir_name:
 	@echo $(BUILD_DIR)
 
 build_top_module:
-	$(PYTHON_EXEC) ./$(PYTHON_DIR)/bootstrap.py $(TOP_MODULE_NAME) $(SETUP_ARGS) -s $(PROJECT_ROOT)
+	./$(PYTHON_DIR)/bootstrap.py $(TOP_MODULE_NAME) $(SETUP_ARGS) -s $(PROJECT_ROOT)
 
 python-format: build_dir_name
 	$(LIB_DIR)/scripts/sw_format.py black . 
@@ -105,11 +97,7 @@ endif
 
 clean: build_dir_name
 	-@if [ -f $(BUILD_DIR)/Makefile ]; then make -C $(BUILD_DIR) clean; fi
-	@rm -rf ../*.summary ../*.rpt $(BUILD_DIR)
-	@rm -f ~*
-ifneq ($(wildcard config_delivery.mk),)
-	make delivery-clean
-endif
+	@rm -rf ../*.summary ../*.rpt $(BUILD_DIR)*  ~*
 
 # Remove all __pycache__ folders with python bytecode
 python-cache-clean:
