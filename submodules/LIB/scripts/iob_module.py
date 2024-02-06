@@ -12,6 +12,7 @@ import mkregs
 import blocks as blocks_lib
 import ios as ios_lib
 import mk_configuration as mk_conf
+import ipxact as ipxact_lib
 
 
 class iob_module:
@@ -25,6 +26,7 @@ class iob_module:
     name = "iob_module"  # Verilog module name (not instance name)
     csr_if = "iob"
     version = "1.0"  # Module version
+    description = "default description"  # Module description
     previous_version = None  # Module version
     setup_dir = ""  # Setup directory for this module
     build_dir = ""  # Build directory for this module
@@ -37,7 +39,9 @@ class iob_module:
     wire_list = None  # List of internal wires of the Verilog module. Used to interconnect module components.
     is_top_module = False  # Select if this module is the top module
     use_netlist = False  # use module netlist
+    generate_ipxact = False  # generate IP-XACT XML file
     is_system = False  # create software files in build directory
+    board_list = None  # List of fpga files to copy to build directory
 
     _initialized_attributes = (
         False  # Store if attributes have been initialized for this class
@@ -449,6 +453,11 @@ class iob_module:
             blocks_lib.generate_blocks_tex(
                 cls.block_groups, cls.build_dir + "/document/tsrc"
             )
+            if cls.generate_ipxact:
+                # Generate IP-XACT XML file
+                ipxact_lib.generate_ipxact_xml(
+                    cls, reg_table, cls.build_dir + "/ipxact"
+                )
 
     @classmethod
     def _remove_duplicate_sources(cls):
@@ -723,6 +732,65 @@ class iob_module:
                             ),
                         )
                         continue
+                elif directory == "hardware/fpga":
+                    # Skip if board_list is empty
+                    if cls.board_list is None:
+                        continue
+
+                    tools_list = ["quartus", "vivado"]
+
+                    # Copy everything except the tools directories
+                    shutil.copytree(
+                        os.path.join(module_class.setup_dir, directory),
+                        os.path.join(cls.build_dir, directory),
+                        dirs_exist_ok=True,
+                        copy_function=cls.copy_with_rename(module_class.name, cls.name),
+                        ignore=shutil.ignore_patterns(*exclude_file_list, *tools_list),
+                    )
+
+                    # if it is the fpga directory, only copy the directories in the cores board_list
+                    for fpga in cls.board_list:
+                        # search for the fpga directory in the cores setup_dir/hardware/fpga
+                        # in both quartus and vivado directories
+                        for tools_dir in tools_list:
+                            setup_tools_dir = os.path.join(
+                                module_class.setup_dir, directory, tools_dir
+                            )
+                            build_tools_dir = os.path.join(
+                                cls.build_dir, directory, tools_dir
+                            )
+                            setup_fpga_dir = os.path.join(setup_tools_dir, fpga)
+                            build_fpga_dir = os.path.join(build_tools_dir, fpga)
+                            
+                            # if the fpga directory is found, copy it to the build_dir
+                            if os.path.isdir(setup_fpga_dir):
+                                # Copy the tools directory files only
+                                for file in os.listdir(setup_tools_dir):
+                                    setup_file = os.path.join(setup_tools_dir, file)
+                                    if os.path.isfile(setup_file):
+                                        shutil.copyfile(
+                                            setup_file,
+                                            os.path.join(build_tools_dir, file),
+                                        )
+                                # Copy the fpga directory
+                                shutil.copytree(
+                                    setup_fpga_dir,
+                                    build_fpga_dir,
+                                    dirs_exist_ok=True,
+                                    copy_function=cls.copy_with_rename(
+                                        module_class.name, cls.name
+                                    ),
+                                    ignore=shutil.ignore_patterns(*exclude_file_list),
+                                )
+                                break
+                        else:
+                            raise Exception(
+                                f"{iob_colors.FAIL}FPGA directory {fpga} not found in {module_class.setup_dir}/hardware/fpga/{iob_colors.ENDC}"
+                            )
+
+                    # No need to copy any more files in this directory
+                    continue
+
                 else:
                     dst_directory = directory
 
