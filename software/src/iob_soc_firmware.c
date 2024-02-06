@@ -19,7 +19,7 @@
 
 #define INPUTBUFFERSIZE 4096
 #define NBR_BYTES 1024
-#define DEBUG 0
+#define DEBUG 1
 #define AUDIO_SPECS 1
 #define SIM
 #define CHECK_INPUT_BUFFER 0
@@ -187,6 +187,8 @@ static enum mad_flow input(void *data, struct mad_stream *stream) {
   decoder.sync->stream.error = MAD_ERROR_NONE;
 
   stream_load_size += nwords;
+
+  printf("stream_load_size: %d\n", stream_load_size);
 
   return MAD_FLOW_CONTINUE;
 }
@@ -386,66 +388,17 @@ int main() {
 
   audio_addr_out = audio_addr_in + mpeg_file_size;
 
-  // Start decoding data (This function will never return)
+  // Start decoding data
   result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
 
-#ifdef USE_TESTER
-
-  printf("Prepare to load decoded audio sample\n\n");
-
-  pcm_file_size = uart_recvfile("testcase.pcm", pcm_audio);
-
-  axistream_in_init(AXISTREAMIN0_BASE);
-  axistream_out_init(AXISTREAMOUT0_BASE, 4);
-
-  uart_puts("AXISTREAMIN0  initialization\n");
-  uart_puts("AXISTREAMOUT0 initialization\n");
-
-  // Decode audio
-  while (audio_decoded_size < pcm_file_size) {
-
-    // Try to receive more pcm data if there is any
-    if (!axistream_in_empty()) {
-      // Receive next byte
-      axistream_in_pop(audio_decoded + audio_decoded_size, &bytes_to_transfer);
-
-      // Check if bytes decoded are as expected
-      for (i = 0; i < bytes_to_transfer; i++) {
-        if (audio_decoded[audio_decoded_size + i] !=
-            pcm_audio[audio_decoded_size + i]) {
-          printf("\nTest failed: Decoded byte at 0x%x with value 0x%x is "
-                 "different from PCM file value 0x%x!\n\n",
-                 audio_decoded_size + i, audio_decoded[audio_decoded_size + i],
-                 pcm_audio[audio_decoded_size + i]);
-          uart_finish();
-          return -1;
-        }
-        printf("R[%d]:%x\n", audio_decoded_size + i,
-               audio_decoded[audio_decoded_size + i]); // DEBUG
-      }
-      audio_decoded_size += bytes_to_transfer;
-
-      // Print progress
-      if ((percentage = audio_decoded_size * 10 / pcm_file_size) >
-          last_percentage) {
-        printf("%3d %%\n", percentage * 10);
-        last_p free(audio_decoded);
-        ercentage = percentage;
-      }
-    }
-  }
-  free(audio_decoded);
-
-#endif
-
-  uart_puts("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+  uart_puts("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
   printf("Decoded audio frames: %.1f%%\nReal-time decoded frames: %.1f%%\n",
          ((float)frames_decoded / nbr_frames) * 100,
          ((float)realtime_frames / nbr_frames) * 100);
   printf("Average decoding time per frame: %d us\n",
          elapsed_sum / frames_decoded);
   printf("Halting difference per frame: %d us", halting_delta / frames_decoded);
-  uart_puts("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+  uart_puts("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 
   uart_sendfile("out-testcase.pcm", output_offset, audio_addr_out);
 
