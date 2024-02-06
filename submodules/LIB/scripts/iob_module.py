@@ -761,7 +761,7 @@ class iob_module:
                             )
                             setup_fpga_dir = os.path.join(setup_tools_dir, fpga)
                             build_fpga_dir = os.path.join(build_tools_dir, fpga)
-                            
+
                             # if the fpga directory is found, copy it to the build_dir
                             if os.path.isdir(setup_fpga_dir):
                                 # Copy the tools directory files only
