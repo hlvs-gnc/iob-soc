@@ -7,8 +7,8 @@ import shutil
 from iob_module import iob_module
 from iob_block_group import iob_block_group
 from iob_soc_utils import pre_setup_iob_soc, post_setup_iob_soc
-from mk_configuration import update_define
-from verilog_tools import inplace_change
+from config_gen import update_define
+from verilog_gen import inplace_change
 
 # Submodules
 from iob_picorv32 import iob_picorv32
@@ -283,7 +283,7 @@ class iob_soc(iob_module):
                 # mandatory parameters (do not change them!)
                 {
                     "name": "ADDR_W",
-                    "type": "P",
+                    "type": "F",
                     "val": "32",
                     "min": "1",
                     "max": "32",
@@ -291,7 +291,7 @@ class iob_soc(iob_module):
                 },
                 {
                     "name": "DATA_W",
-                    "type": "P",
+                    "type": "F",
                     "val": "32",
                     "min": "1",
                     "max": "32",
@@ -299,7 +299,7 @@ class iob_soc(iob_module):
                 },
                 {
                     "name": "AXI_ID_W",
-                    "type": "P",
+                    "type": "F",
                     "val": "0",
                     "min": "1",
                     "max": "32",
@@ -307,7 +307,7 @@ class iob_soc(iob_module):
                 },
                 {
                     "name": "AXI_ADDR_W",
-                    "type": "P",
+                    "type": "F",
                     "val": "`IOB_SOC_MEM_ADDR_W",
                     "min": "1",
                     "max": "32",
@@ -315,7 +315,7 @@ class iob_soc(iob_module):
                 },
                 {
                     "name": "AXI_DATA_W",
-                    "type": "P",
+                    "type": "F",
                     "val": "`IOB_SOC_DATA_W",
                     "min": "1",
                     "max": "32",
@@ -323,7 +323,7 @@ class iob_soc(iob_module):
                 },
                 {
                     "name": "AXI_LEN_W",
-                    "type": "P",
+                    "type": "F",
                     "val": "4",
                     "min": "1",
                     "max": "4",
@@ -331,7 +331,7 @@ class iob_soc(iob_module):
                 },
                 {
                     "name": "MEM_ADDR_OFFSET",
-                    "type": "P",
+                    "type": "F",
                     "val": "0",
                     "min": "0",
                     "max": "NA",
