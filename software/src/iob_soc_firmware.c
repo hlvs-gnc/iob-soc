@@ -174,7 +174,8 @@ static enum mad_flow input(void *data, struct mad_stream *stream) {
   previous_sync = stream->sync;
 
   // Set new buffer pointers
-  if(nwords == NBR_BYTES) mad_stream_buffer(stream, input_buffer, nwords + unprocessedData);
+  if (nwords == NBR_BYTES)
+    mad_stream_buffer(stream, input_buffer, nwords + unprocessedData);
 
   if (nwords < NBR_BYTES)
     mad_stream_buffer(stream, input_buffer,
