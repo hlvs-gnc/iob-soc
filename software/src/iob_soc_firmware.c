@@ -16,39 +16,43 @@
 #endif
 
 #include "mad.h"
+#include "profiling.h"
 
 #define INPUTBUFFERSIZE 4096
 #define NBR_BYTES 1024
-#define DEBUG 1
-#define AUDIO_SPECS 1
 #define SIM
-#define CHECK_INPUT_BUFFER 0
-#define SAMPLE_RESOLUTION 16
 
+#define API_PROFILE 1
+#define DEBUG 0
+#define CHECK_INPUT_BUFFER 0
+#define AUDIO_SPECS 0
+#define ERROR_INFO 0
+
+#define SAMPLE_RESOLUTION 16
 #define MAX_WORDS_AXIS 16
 #define WORD_SIZE 4
 
-char audio_file_in[] = "testcase-22050.mp2";
+char audio_file_in[] = "speech_sample0.mp2";
 
 unsigned char input_buffer[INPUTBUFFERSIZE];
 
-struct mad_decoder decoder;
+uint32_t input_offset = 0, output_offset = 0;
 
-int input_offset = 0;
-int output_offset = 0;
+struct mad_decoder decoder;
 
 bool newFrame = true;
 
-int frames_decoded = 0;
-int realtime_frames = 0;
+uint16_t frames_decoded = 0;
+uint16_t realtime_frames = 0;
 
 int frame_size = 0;
-int nbr_frames = 0;
+uint16_t nbr_frames = 0, frame_row = 0;
 
-unsigned int frame_time_us = 0, elapsed_sum = 0, halting_delta = 0;
+uint32_t frame_time_us = 0;
+uint64_t elapsed_sum = 0, halting_delta = 0;
 
-unsigned int mpeg_file_size = 0, pcm_file_size = 0, audio_decoded_size = 0,
-             bytes_sent = 0, stream_load_size = 0;
+uint32_t mpeg_file_size = 0, pcm_file_size = 0, audio_decoded_size = 0,
+         bytes_sent = 0;
 
 uint8_t last_percentage = 0, percentage, bytes_to_transfer;
 
@@ -57,9 +61,9 @@ unsigned char *audio_addr_in = NULL;
 unsigned char *audio_addr_out = NULL;
 unsigned char *audio_decoded = NULL;
 
-uint32_t iob_read_mem(unsigned char *mem_addr, unsigned char *mem_buffer,
-                      uint32_t offsetUnprocessed, uint32_t offsetConsumed,
-                      uint32_t nbr_bytes);
+uint32_t read_mem(unsigned char *mem_addr, unsigned char *mem_buffer,
+                  uint32_t offsetUnprocessed, uint32_t offsetConsumed,
+                  uint32_t nbr_bytes);
 
 /*
  * This is a private message structure. A generic pointer to this structure
@@ -74,20 +78,15 @@ struct buffer {
 /*
  * This is the input callback. The purpose of this callback is to (re)fill
  * the stream buffer which is to be decoded.
- * It reads data from the AXI4 Stream In peripheral.
+ * It reads data from the AXI4 Stream In peripheral when the Tester
+ * is including the Decoder, receiving data in polling mode, as the SUT.
  */
 static enum mad_flow input(void *data, struct mad_stream *stream) {
 
   uint16_t nwords = 0, i, to_be_read;
   uint32_t unprocessedData, consumedData;
   int32_t previous_sync;
-
-  if (newFrame == true) {
-#if (DEBUG == 1)
-    printf("Reset timer\n");
-#endif
-    timer_reset();
-  }
+  uint8_t flow_state;
 
   // Calculate how much of the buffer has unprocessed data
   unprocessedData = stream->bufend - stream->next_frame;
@@ -129,7 +128,7 @@ static enum mad_flow input(void *data, struct mad_stream *stream) {
          (unprocessedData + MAX_AXIS_BYTES - 1 < INPUTBUFFERSIZE)) {
 
 #if (DEBUG == 1)
-    uart_puts("[MPEGD-SUT]: Loading compressed data to stream buffer\n");
+    uart16550_puts("[MPEGD-SUT]: Loading compressed data to stream buffer\n");
 #endif
 
     // Receive bytes while stream does not end (by TLAST signal), or up to 16
@@ -148,50 +147,70 @@ static enum mad_flow input(void *data, struct mad_stream *stream) {
 
 #ifdef SIM
 
-  if (stream_load_size + NBR_BYTES < mpeg_file_size)
+  if ((input_offset + NBR_BYTES) >= mpeg_file_size)
+    to_be_read = mpeg_file_size - input_offset;
+  else
     to_be_read = (NBR_BYTES < consumedData) ? NBR_BYTES : consumedData;
-  else if (mpeg_file_size - stream_load_size < NBR_BYTES)
-    to_be_read = mpeg_file_size - stream_load_size;
 
-  if ((nwords = iob_read_mem(audio_addr_in, input_buffer, unprocessedData,
-                             stream_load_size, to_be_read)) <= 0) {
-    if (unprocessedData <= MAD_BUFFER_GUARD || nwords == 0) {
-      return MAD_FLOW_STOP;
+  if ((nwords = read_mem(audio_addr_in, input_buffer, unprocessedData,
+                         input_offset, to_be_read)) < NBR_BYTES) {
+    if (unprocessedData <= MAD_BUFFER_GUARD || nwords == 0)
+      flow_state = MAD_FLOW_STOP;
+    else {
+#if (DEBUG == 1)
+      printf("Remaining data still to be processed\n");
+#endif
+      flow_state = MAD_FLOW_CONTINUE;
     }
   }
+
+  input_offset += nwords;
+
+#if (DEBUG == 1)
+  printf("to_be_read: %d\ninput_offset: %d\n", to_be_read, input_offset);
+  printf("nwords: %d\n\n", nwords);
+#endif
 
 #endif
 
 #if (CHECK_INPUT_BUFFER == 1)
-  printf("nwords: %d\n\n", nwords);
   for (i = 0; i < nwords; i++) {
     printf("input_buffer[%d]: 0x%02x\n", i, input_buffer[i + unprocessedData]);
   }
 #endif
 
-  newFrame = false;
+  // Set new buffer pointers
+  if (nwords < NBR_BYTES && nwords > 0) {
+#if (DEBUG == 1)
+    printf("Set MAD_BUFFER_GUARD zero bytes at the end of input buffer\n");
+#endif
+
+    memset(input_buffer + nwords, 0, MAD_BUFFER_GUARD);
+    nwords += MAD_BUFFER_GUARD;
+  } else if (nwords == NBR_BYTES)
+    flow_state = MAD_FLOW_CONTINUE;
 
   previous_sync = stream->sync;
 
-  // Set new buffer pointers
-  if (nwords == NBR_BYTES)
-    mad_stream_buffer(stream, input_buffer, nwords + unprocessedData);
+  if (newFrame == true && API_PROFILE == 1) {
 
-  if (nwords < NBR_BYTES)
-    mad_stream_buffer(stream, input_buffer,
-                      nwords + unprocessedData + MAD_BUFFER_GUARD);
+#if (DEBUG == 1)
+    printf("Reset timer\n");
+#endif
 
-  if (decoder.sync->stream.error != MAD_ERROR_BUFLEN) {
-    stream->sync = previous_sync;
+    timer_reset();
   }
+
+  mad_stream_buffer(stream, input_buffer, nwords + unprocessedData);
+
+  if (decoder.sync->stream.error != MAD_ERROR_BUFLEN)
+    stream->sync = previous_sync;
 
   decoder.sync->stream.error = MAD_ERROR_NONE;
 
-  stream_load_size += nwords;
+  newFrame = false;
 
-  printf("stream_load_size: %d\n", stream_load_size);
-
-  return MAD_FLOW_CONTINUE;
+  return flow_state;
 }
 
 /*
@@ -223,16 +242,10 @@ static inline signed int scale(mad_fixed_t sample) {
  */
 static enum mad_flow output(void *data, struct mad_header const *header,
                             struct mad_pcm *pcm) {
+
   unsigned int nchannels, nsamples;
   mad_fixed_t const *left_ch, *right_ch;
   int i = output_offset, k, nbr_samples = 0;
-
-  unsigned long long elapsed_clk_cycles;
-  unsigned int elapsed_us;
-
-#if (DEBUG == 1)
-  printf("\nDecoder output callback function\n");
-#endif
 
   /* pcm->samplerate contains the sampling frequency */
   nchannels = pcm->channels;
@@ -241,8 +254,6 @@ static enum mad_flow output(void *data, struct mad_header const *header,
   right_ch = pcm->samples[1];
 
   nchannels == 2 ? (k = 4) : (k = 2);
-
-  newFrame = true;
 
   if (frames_decoded == 0) {
 
@@ -267,15 +278,40 @@ static enum mad_flow output(void *data, struct mad_header const *header,
     audio_addr_out = (unsigned char *)malloc(nsamples * k * nbr_frames);
   }
 
+#if (API_PROFILE == 1)
+  uint64_t elapsed_clk_cycles = 0;
+  unsigned int elapsed_us = 0;
+
+  if (newFrame == false)
+    frame_row = 1;
+
+  elapsed_clk_cycles = timer_get_count();
+  elapsed_us = elapsed_clk_cycles / (FREQ / 1000000);
+
+  if (newFrame == true)
+    ++frame_row;
+
+  printf("Decoding time: %d us @%dMHz\n", elapsed_us / frame_row,
+         FREQ / 1000000);
+  elapsed_sum += elapsed_us / frame_row;
+
+  if (elapsed_us <= frame_time_us)
+    ++realtime_frames;
+  else
+    halting_delta += (elapsed_us - frame_time_us);
+#endif
+
   while (nsamples--) {
     signed int sample;
-    uint8_t sample_bytes[2];
+    int8_t sample_bytes[2];
 
     /* output sample(s) in 16-bit signed little-endian PCM */
 
     sample = scale(*left_ch++);
+#ifdef USE_TESTER
     sample_bytes[0] = sample & 0xff;
     sample_bytes[1] = sample >> 8 & 0xff;
+#endif
 
 #ifdef SIM
     audio_addr_out[i] = sample & 0xff;
@@ -292,8 +328,10 @@ static enum mad_flow output(void *data, struct mad_header const *header,
 
     if (nchannels == 2) {
       sample = scale(*right_ch++);
+#ifdef USE_TESTER
       sample_bytes[0] = sample & 0xff;
       sample_bytes[1] = sample >> 8 & 0xff;
+#endif
 
 #ifdef SIM
       audio_addr_out[i + 2] = sample & 0xff;
@@ -311,22 +349,30 @@ static enum mad_flow output(void *data, struct mad_header const *header,
     i += k;
   }
 
-  elapsed_clk_cycles = timer_get_count();
-  elapsed_us = (unsigned int)elapsed_clk_cycles / (FREQ / 1000000);
-
-  printf("\n#Clock cycles: %llu\n", elapsed_clk_cycles);
-  printf("Decoding time: %d us @%dMHz\n\n", elapsed_us, FREQ / 1000000);
-  timer_reset();
-
-  elapsed_sum += elapsed_us;
-
-  if (elapsed_us <= frame_time_us)
-    realtime_frames++;
-  else
-    halting_delta += (elapsed_us - frame_time_us);
-
   output_offset += nbr_samples;
-  frames_decoded += 1;
+  ++frames_decoded;
+
+#if (DEBUG == 1)
+  printf("\nDecoder output callback function\n");
+  printf("Frames decoded: %d\n\n", frames_decoded);
+#endif
+
+#if (PROFILE_I == 1)
+  for (int i = 0; i < PROF_INSTANCES; i++) {
+    if (i != 1) {
+      promptInfo(libmad[i].array, libmad[i].size, i);
+      resetArray(libmad[i].array, libmad[i].size);
+    }
+  }
+
+#elif (PROFILE_II == 1)
+  for (int i = 1; i < PROF_INSTANCES; i++) {
+    promptInfo(libmad[i].array, libmad[i].size, i);
+    resetArray(libmad[i].array, libmad[i].size);
+  }
+#endif
+
+  newFrame = true;
 
   return MAD_FLOW_CONTINUE;
 }
@@ -342,13 +388,18 @@ static enum mad_flow error(void *data, struct mad_stream *stream,
   struct buffer *buffer = data;
 
 #if (ERROR_INFO == 1)
-  printf("Decoding error 0x%04x (%s) at byte offset %u\n", stream->error,
-         mad_stream_errorstr(stream), stream->this_frame - buffer->start);
+  if (MAD_RECOVERABLE(stream->error)) {
+    printf("Recoverable frame level error 0x%04x (%s) \n", stream->error,
+           mad_stream_errorstr(stream));
+    return MAD_FLOW_CONTINUE;
+  } else {
+    printf("Decoding error 0x%04x (%s) at byte offset %lu\n", stream->error,
+           mad_stream_errorstr(stream), stream->this_frame - buffer->start);
+  }
 #endif
 
   /* return MAD_FLOW_BREAK here to stop decoding (and propagate an error) */
-
-  return MAD_FLOW_CONTINUE;
+  return MAD_FLOW_BREAK;
 }
 
 /*
@@ -414,9 +465,9 @@ int main() {
   uart_finish();
 }
 
-uint32_t iob_read_mem(unsigned char *mem_addr, unsigned char *mem_buffer,
-                      uint32_t offsetUnprocessed, uint32_t offsetConsumed,
-                      uint32_t nbr_bytes) {
+uint32_t read_mem(unsigned char *mem_addr, unsigned char *mem_buffer,
+                  uint32_t offsetUnprocessed, uint32_t offsetConsumed,
+                  uint32_t nbr_bytes) {
 
   int i = 0;
 
