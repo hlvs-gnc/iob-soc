@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "mad.h": "c",
+        "profiling.h": "c"
+    }
+}

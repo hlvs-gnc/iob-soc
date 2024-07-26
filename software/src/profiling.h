@@ -2,14 +2,14 @@
 #include <stdint.h>
 
 #define PROFILE_I 0
-#define PROFILE_II 0
+#define PROFILE_II 1
 
 #define PROF_INSTANCES 5
 
 // LIBMAD function number count
 #define LAYER_I_II_NFUNCTIONS 4
 #define LAYER_III_NFUNCTIONS 20
-#define SYNTH_NFUNCTIONS 3
+#define SYNTH_NFUNCTIONS 4
 #define FRAME_NFUNCTIONS 3
 #define BIT_NFUNCTIONS 1
 

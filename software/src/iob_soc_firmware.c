@@ -22,7 +22,7 @@
 #define NBR_BYTES 1024
 #define SIM
 
-#define API_PROFILE 1
+#define API_PROFILE 0
 #define DEBUG 0
 #define CHECK_INPUT_BUFFER 0
 #define AUDIO_SPECS 0
@@ -32,13 +32,12 @@
 #define MAX_WORDS_AXIS 16
 #define WORD_SIZE 4
 
-char audio_file_in[] = "speech_sample0.mp2";
+struct mad_decoder decoder;
+
+char audio_file_in[] = "Sergei_Prokofie_SymphonyNo1_Mvt_I_short_CBR.mp3";
 
 unsigned char input_buffer[INPUTBUFFERSIZE];
-
 uint32_t input_offset = 0, output_offset = 0;
-
-struct mad_decoder decoder;
 
 bool newFrame = true;
 
@@ -291,14 +290,18 @@ static enum mad_flow output(void *data, struct mad_header const *header,
   if (newFrame == true)
     ++frame_row;
 
-  printf("Decoding time: %d us @%dMHz\n", elapsed_us / frame_row,
+  printf("Decoding time:\t %d us @%dMHz\n", elapsed_us / frame_row,
          FREQ / 1000000);
-  elapsed_sum += elapsed_us / frame_row;
+  elapsed_sum += (elapsed_us / frame_row);
 
-  if (elapsed_us <= frame_time_us)
+  if (elapsed_us / frame_row <= frame_time_us)
     ++realtime_frames;
-  else
-    halting_delta += (elapsed_us - frame_time_us);
+  else {
+    halting_delta += ((elapsed_us / frame_row) - frame_time_us);
+    printf("Halting difference:\t %d us\n",
+           (elapsed_us / frame_row) - frame_time_us);
+  }
+
 #endif
 
   while (nsamples--) {
@@ -435,6 +438,8 @@ int main() {
   uart_puts("Prepare to load compressed audio sample\n");
 
   uint8_t last_percentage = 0, percentage, bytes_to_transfer;
+
+  audio_addr_in = (unsigned char *)malloc(sizeof(unsigned char) * 1048576);
 
   mpeg_file_size = uart_recvfile(audio_file_in, audio_addr_in);
 
