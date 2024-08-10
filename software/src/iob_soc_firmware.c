@@ -40,7 +40,7 @@ unsigned char input_buffer[INPUTBUFFERSIZE];
 uint32_t input_offset = 0, output_offset = 0;
 
 bool newFrame = true;
-
+ 
 uint16_t frames_decoded = 0;
 uint16_t realtime_frames = 0;
 
