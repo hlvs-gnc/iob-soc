@@ -22,7 +22,7 @@
 #define NBR_BYTES 1024
 #define SIM
 
-#define API_PROFILE 0
+#define API_PROFILE 1
 #define DEBUG 0
 #define CHECK_INPUT_BUFFER 0
 #define AUDIO_SPECS 0
@@ -34,7 +34,7 @@
 
 struct mad_decoder decoder;
 
-char audio_file_in[] = "Sergei_Prokofie_SymphonyNo1_Mvt_I_short_CBR.mp3";
+char audio_file_in[] = "testcase-44100.mp3";
 
 unsigned char input_buffer[INPUTBUFFERSIZE];
 uint32_t input_offset = 0, output_offset = 0;

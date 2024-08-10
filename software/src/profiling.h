@@ -1,8 +1,13 @@
 #include "printf.h"
 #include <stdint.h>
 
+#ifndef DECODER_PROFILE
+#define DECODER_PROFILE 0
+
+#if (DECODER_PROFILE)
 #define PROFILE_I 0
-#define PROFILE_II 1
+#define PROFILE_II 0
+#endif
 
 #define PROF_INSTANCES 5
 
